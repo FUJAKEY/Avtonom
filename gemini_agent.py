@@ -7,11 +7,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "env"))
 import google.generativeai as genai
 from google.generativeai import protos
 
-WORKSPACE_DIR = os.path.abspath("./")
-
-# Load API key from .env
-from pathlib import Path
 from dotenv import load_dotenv
+
+WORKSPACE_DIR = os.path.abspath("./")
 
 load_dotenv()
 API_KEY = os.getenv("API")
@@ -21,7 +19,10 @@ if not API_KEY:
 
 genai.configure(api_key=API_KEY)
 
-# Define tool functions for function calling
+# Planning state
+plan_steps = []
+
+# Tool functions
 
 def read_file(path: str) -> str:
     abs_path = os.path.abspath(os.path.join(WORKSPACE_DIR, path))
@@ -29,6 +30,7 @@ def read_file(path: str) -> str:
         raise ValueError("Access outside workspace is not allowed")
     with open(abs_path, "r", encoding="utf-8") as f:
         return f.read()
+
 
 def write_file(path: str, content: str) -> str:
     abs_path = os.path.abspath(os.path.join(WORKSPACE_DIR, path))
@@ -39,48 +41,84 @@ def write_file(path: str, content: str) -> str:
         f.write(content)
     return f"Wrote {len(content)} bytes to {path}"
 
+
 def run_command(command: str) -> str:
     result = subprocess.run(command, shell=True, cwd=WORKSPACE_DIR,
                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                             text=True)
     return result.stdout
 
-# Map for function calling
-TOOLS = [read_file, write_file, run_command]
 
-# Map tool name to function
+def create_plan(steps: str) -> str:
+    """Register a plan consisting of a JSON list of steps."""
+    global plan_steps
+    plan_steps = json.loads(steps)
+    return f"Plan with {len(plan_steps)} steps saved."
+
+
+def show_plan() -> str:
+    return json.dumps(plan_steps, indent=2, ensure_ascii=False)
+
+
+def execute_plan() -> str:
+    outputs = []
+    for step in plan_steps:
+        fn = step.get("function")
+        args = step.get("args", {})
+        tool = FUNCTION_MAP.get(fn)
+        if not tool:
+            outputs.append(f"Unknown function {fn}")
+            continue
+        outputs.append(tool(**args))
+    return "\n".join(outputs)
+
+
+TOOLS = [read_file, write_file, run_command, create_plan, show_plan, execute_plan]
+
 FUNCTION_MAP = {
     "read_file": read_file,
     "write_file": write_file,
     "run_command": run_command,
+    "create_plan": create_plan,
+    "show_plan": show_plan,
+    "execute_plan": execute_plan,
 }
 
 SYSTEM_PROMPT = (
-    "Ты автономный агент, помогающий создавать проекты. "
-    "Работай строго в каталоге /workspace/Avtonom. "
-    "У тебя есть функции чтения и записи файлов и выполнения команд. "
-    "Следуй задачам пользователя и постепенно формируй нужные файлы."
+    "Ты автономный агент, работающий в каталоге /workspace/Avtonom. "
+    "Ты умеешь читать и изменять файлы, выполнять команды и строить планы. "
+    "Когда задача требует нескольких действий, предлагай план через функцию "
+    "create_plan, жди подтверждения пользователя и затем выполняй его целиком "
+    "с помощью execute_plan."
 )
 
 model = genai.GenerativeModel("gemini-2.0-flash", tools=TOOLS)
 chat = model.start_chat(history=[{"role": "system", "parts": [SYSTEM_PROMPT]}])
 
-user_task = (
-    "Создай минимальный пример проекта на Python со структурой "
-    "каталогов и инструкцией по запуску"
-)
-response = chat.send_message(user_task)
-
 while True:
-    acted = False
-    for part in response.candidates[0].content.parts:
-        if hasattr(part, "function_call") and part.function_call:
-            acted = True
-            fn_name = part.function_call.name
-            args = json.loads(part.function_call.args)
-            result = FUNCTION_MAP[fn_name](**args)
-            response = chat.send_message(protos.FunctionResponse(name=fn_name, response={"result": result}))
-            break
-    if not acted:
-        print(response.text)
+    try:
+        user_msg = input(">>> ")
+    except EOFError:
         break
+    response = chat.send_message(user_msg)
+    while True:
+        acted = False
+        for part in response.candidates[0].content.parts:
+            if hasattr(part, "function_call") and part.function_call:
+                acted = True
+                fn_name = part.function_call.name
+                args = {}
+                if part.function_call.args:
+                    try:
+                        args = json.loads(part.function_call.args)
+                    except json.JSONDecodeError:
+                        args = {"steps": part.function_call.args}
+                result = FUNCTION_MAP[fn_name](**args)
+                response = chat.send_message(
+                    protos.FunctionResponse(name=fn_name, response={"result": result})
+                )
+                break
+        if not acted:
+            print(response.text)
+            break
+
