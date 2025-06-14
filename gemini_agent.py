@@ -56,16 +56,19 @@ FUNCTION_MAP = {
 }
 
 SYSTEM_PROMPT = (
-    "Ты автономный агент для разработки крупного проекта. "
+    "Ты автономный агент, помогающий создавать проекты. "
     "Работай строго в каталоге /workspace/Avtonom. "
     "У тебя есть функции чтения и записи файлов и выполнения команд. "
-    "Создай проект Discord-бота на Python, используя модель Gemini-2.0-Flash."
+    "Следуй задачам пользователя и постепенно формируй нужные файлы."
 )
 
 model = genai.GenerativeModel("gemini-2.0-flash", tools=TOOLS)
 chat = model.start_chat(history=[{"role": "system", "parts": [SYSTEM_PROMPT]}])
 
-user_task = "Создай минимальный проект Discord-бота со всеми необходимыми файлами и инструкциями по запуску"
+user_task = (
+    "Создай минимальный пример проекта на Python со структурой "
+    "каталогов и инструкцией по запуску"
+)
 response = chat.send_message(user_task)
 
 while True:
