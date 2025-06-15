@@ -92,8 +92,12 @@ SYSTEM_PROMPT = (
     "с помощью execute_plan."
 )
 
-model = genai.GenerativeModel("gemini-2.0-flash", tools=TOOLS)
-chat = model.start_chat(history=[{"role": "system", "parts": [SYSTEM_PROMPT]}])
+model = genai.GenerativeModel(
+    "gemini-2.0-flash",
+    tools=TOOLS,
+    system_instruction=SYSTEM_PROMPT,
+)
+chat = model.start_chat()
 
 while True:
     try:
