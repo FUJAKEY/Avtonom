@@ -1,6 +1,6 @@
 import os
-import subprocess
 import json
+import subprocess
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "env"))
@@ -111,13 +111,18 @@ while True:
             if hasattr(part, "function_call") and part.function_call:
                 acted = True
                 fn_name = part.function_call.name
-                args = {}
-                if part.function_call.args:
+                args_payload = part.function_call.args
+                if isinstance(args_payload, str):
                     try:
-                        args = json.loads(part.function_call.args)
+                        args = json.loads(args_payload)
                     except json.JSONDecodeError:
-                        args = {"steps": part.function_call.args}
-                result = FUNCTION_MAP[fn_name](**args)
+                        args = {"steps": args_payload}
+                elif args_payload is None:
+                    args = {}
+                else:
+                    # Already a mapping (e.g. MapComposite)
+                    args = dict(args_payload)
+                result = FUNCTION_MAP.get(fn_name, lambda **_: f"Unknown function {fn_name}")(**args)
                 response = chat.send_message(
                     protos.FunctionResponse(name=fn_name, response={"result": result})
                 )
