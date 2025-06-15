@@ -96,8 +96,10 @@ SYSTEM_PROMPT = (
     "уважительной причины."
 )
 
+MODEL_NAME = "gemini-2.5-pro-preview-06-05"
+
 model = genai.GenerativeModel(
-    "gemini-2.0-flash",
+    MODEL_NAME,
     tools=TOOLS,
     system_instruction=SYSTEM_PROMPT,
 )

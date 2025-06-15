@@ -7,7 +7,7 @@
 файлы, выполнять команды терминала и строить подробные планы из
 нескольких шагов. После единственного подтверждения пользователя план
 выполняется целиком.
-Скрипт `gemini_agent.py` запускает чат с моделью `gemini-2.0-flash` и
+Скрипт `gemini_agent.py` запускает чат с моделью `gemini-2.5-pro-preview-06-05` и
 предоставляет функции `create_plan` и `execute_plan`.
 
 Перед запуском убедитесь, что в файле `.env` указан рабочий API‑ключ.
@@ -22,3 +22,6 @@ pip install --target ./env google-generativeai python-dotenv
 ```bash
 python3 gemini_agent.py
 ```
+
+Дополнительные возможности модели описаны в документации
+[Gemini thinking](https://ai.google.dev/gemini-api/docs/thinking?hl=ru).
