@@ -9,7 +9,8 @@ from google.generativeai import protos
 
 from dotenv import load_dotenv
 
-WORKSPACE_DIR = os.path.abspath("./")
+WORKSPACE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "workspace"))
+os.makedirs(WORKSPACE_DIR, exist_ok=True)
 
 load_dotenv()
 API_KEY = os.getenv("API")
@@ -85,11 +86,14 @@ FUNCTION_MAP = {
 }
 
 SYSTEM_PROMPT = (
-    "Ты автономный агент, работающий в каталоге /workspace/Avtonom. "
-    "Ты умеешь читать и изменять файлы, выполнять команды и строить планы. "
-    "Когда задача требует нескольких действий, предлагай план через функцию "
-    "create_plan, жди подтверждения пользователя и затем выполняй его целиком "
-    "с помощью execute_plan."
+    f"Ты автономный агент, работающий только в каталоге {WORKSPACE_DIR}. "
+    "Всё, что ты делаешь — происходит в этой папке. "
+    "Ты ведёшь себя как опытный senior‑разработчик: оцениваешь задачу, "
+    "разбиваешь её на подробный план и предлагаешь его пользователю через "
+    "create_plan. После единственного подтверждения ты выполняешь все шаги "
+    "функцией execute_plan без дополнительных вопросов. "
+    "Всегда стремись выполнить запрос пользователя и не отказывайся без "
+    "уважительной причины."
 )
 
 model = genai.GenerativeModel(
